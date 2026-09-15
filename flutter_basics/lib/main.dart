@@ -1,8 +1,10 @@
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_basics/IntroPage.dart';
 import 'package:flutter_basics/bmiCalculator.dart';
+import 'package:flutter_basics/data/local/dbHelper.dart';
 import 'package:flutter_basics/flowerDetails.dart';
 import 'package:flutter_basics/profilePage.dart';
 import 'package:flutter_basics/sharedPref/splashScreenPage.dart';
@@ -50,12 +52,12 @@ class MyApp extends StatelessWidget {
           headlineSmall: TextStyle(fontWeight: FontWeight.w500, fontSize: 6),
         ),
       ),
-      // home: const MyHomePage(title: 'Welcome to Experiment Lab'),
+      home: const MyHomePage(title: 'Welcome to Experiment Lab'),
       // home: HomePage(),
       // home: const Intropage(),
       // home: SplashScreen(),
       // home: BmiCalculator(),
-      home: const SplashScreenSharedPref(),
+      // home: const SplashScreenSharedPref(),
     );
   }
 }
@@ -280,11 +282,11 @@ class _MyHomePageState extends State<MyHomePage>
   var profileName;
   var profileNameController = TextEditingController();
 
-  @override
-  void initState() {
-    super.initState();
-    loadProfile();
-  }
+  // @override
+  // void initState() {
+  //   super.initState();
+  //   loadProfile();
+  // }
 
   void loadProfile() async {
     final name = await getValue();
@@ -293,6 +295,92 @@ class _MyHomePageState extends State<MyHomePage>
       profileName = name;
       profileNameController.text = name;
     });
+  }
+
+  List<Map<String, dynamic>> allNotes = [];
+  DBHelper? dbRef;
+
+  @override
+  void initState() {
+    super.initState();
+    dbRef = DBHelper.getInstance;
+    getNotes();
+  }
+
+  void getNotes() async {
+    allNotes = await dbRef!.getAllNotes();
+    setState(() {});
+  }
+
+  var notes_title = TextEditingController();
+  var notes_desc = TextEditingController();
+  String err_msg = '';
+
+  void addNote(BuildContext context) async {
+    err_msg = '';
+    if (notes_title.text.trim().isEmpty || notes_desc.text.trim().isEmpty) {
+      setState(() {
+        err_msg = "Please fill all fields";
+      });
+      return;
+    }
+
+    bool check = await dbRef!.addNotes(
+      title: notes_title.text,
+      description: notes_desc.text,
+    );
+
+    if (check) {
+      notes_title.clear();
+      notes_desc.clear();
+      getNotes();
+      if (context.mounted) {
+        Navigator.pop(context);
+      }
+    } else {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Please Try again")));
+    }
+  }
+
+  void deleteNote(BuildContext context, int id) async {
+    bool check = await dbRef!.deleteNote(id: id);
+    if (!check)
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Please Try Again")));
+    getNotes();
+  }
+
+  void editNote(BuildContext context, int id) async {
+    err_msg = '';
+    if (notes_title.text.trim().isEmpty || notes_desc.text.trim().isEmpty) {
+      setState(() {
+        err_msg = "Please fill all fields";
+      });
+      return;
+    }
+
+    bool check = await dbRef!.updateNote(
+      id: id,
+      title: notes_title.text,
+      description: notes_desc.text,
+    );
+
+    if (check) {
+      notes_title.clear();
+      notes_desc.clear();
+      err_msg = '';
+      getNotes();
+      if (context.mounted) {
+        Navigator.pop(context);
+      }
+    } else {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Please Try again")));
+    }
   }
 
   @override
@@ -1661,9 +1749,52 @@ class _MyHomePageState extends State<MyHomePage>
       //   ),
       // ),
 
-      // // // // TOPICS : REAL LIFE USAGES OF SHARED PREFERENCES :-
-      body: Container(),
-
+      // // // // TOPICS : SAVE DATA LOCALLY USING SQLITE :-
+      body: allNotes.isNotEmpty
+          ? ListView.builder(
+              itemCount: allNotes.length,
+              itemBuilder: (BuildContext context, int index) {
+                return ListTile(
+                  leading: Text("${index + 1}"),
+                  title: Text("${allNotes[index][DBHelper.COLUMN_TITLE]}"),
+                  subtitle: Text(
+                    "${allNotes[index][DBHelper.COLUMN_DESCRIPTION]}",
+                  ),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      InkWell(
+                        child: Icon(
+                          Icons.edit,
+                          color: Colors.limeAccent.shade100,
+                        ),
+                        onTap: () => showModalBottomSheet(
+                          context: context,
+                          builder: (context) {
+                            notes_title.text =
+                                allNotes[index][DBHelper.COLUMN_TITLE];
+                            notes_desc.text =
+                                allNotes[index][DBHelper.COLUMN_DESCRIPTION];
+                            return bottomModel(
+                              isNew: false,
+                              id: allNotes[index][DBHelper.COLUMN_S_NO],
+                            );
+                          },
+                        ),
+                      ),
+                      InkWell(
+                        child: Icon(Icons.delete, color: Colors.red.shade500),
+                        onTap: () => deleteNote(
+                          context,
+                          allNotes[index][DBHelper.COLUMN_S_NO],
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            )
+          : Center(child: Text("No Notes Found")),
 
       /*
       floatingActionButton: FloatingActionButton(
@@ -1672,6 +1803,23 @@ class _MyHomePageState extends State<MyHomePage>
         child: const Icon(Icons.add),
       ),
       */
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          // dbRef!.addNotes(
+          //   title: "Test Notes",
+          //   description: "TEsting notes fo use ",
+          // );
+          // getNotes();
+
+          showModalBottomSheet(
+            context: context,
+            builder: (context) {
+              return bottomModel();
+            },
+          );
+        },
+        child: Icon(Icons.add),
+      ),
     );
   }
 
@@ -1682,6 +1830,65 @@ class _MyHomePageState extends State<MyHomePage>
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         color: Colors.greenAccent.withOpacity(1.0 - _animationController.value),
+      ),
+    );
+  }
+
+  Widget bottomModel({bool isNew = true, int? id}) {
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Container(
+        width: double.infinity,
+        child: Column(
+          children: [
+            Text(
+              isNew ? "Add Notes" : "Edit Notes",
+              style: TextStyle(fontSize: 18),
+            ),
+            SizedBox(height: 40),
+            TextField(
+              controller: notes_title,
+              decoration: InputDecoration(
+                hint: Text("Enter Title"),
+                border: OutlineInputBorder(),
+              ),
+            ),
+            SizedBox(height: 10),
+            TextField(
+              controller: notes_desc,
+              minLines: 4,
+              maxLines: null,
+              decoration: InputDecoration(
+                hint: Text("Enter Description"),
+                border: OutlineInputBorder(),
+              ),
+            ),
+            SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () =>
+                        isNew ? addNote(context) : editNote(context, id!),
+                    child: Text(isNew ? "Add Notes" : "Edit Notes"),
+                  ),
+                ),
+                SizedBox(width: 10),
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () {
+                      err_msg = '';
+                      Navigator.pop(context);
+                    },
+                    child: Text("Cancel"),
+                  ),
+                ),
+              ],
+            ),
+            SizedBox(height: 10),
+            if (err_msg.isNotEmpty) Text("$err_msg"),
+          ],
+        ),
       ),
     );
   }
