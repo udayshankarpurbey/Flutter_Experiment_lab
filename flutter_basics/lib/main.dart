@@ -4,8 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_basics/IntroPage.dart';
 import 'package:flutter_basics/bmiCalculator.dart';
+import 'package:flutter_basics/counterProvider.dart';
+import 'package:flutter_basics/couterPage.dart';
 import 'package:flutter_basics/data/local/dbHelper.dart';
 import 'package:flutter_basics/flowerDetails.dart';
+import 'package:flutter_basics/listMapProvider.dart';
+import 'package:flutter_basics/listPage.dart';
 import 'package:flutter_basics/profilePage.dart';
 import 'package:flutter_basics/sharedPref/splashScreenPage.dart';
 import 'package:flutter_basics/splashScreen.dart';
@@ -13,10 +17,19 @@ import 'package:flutter_basics/ui/font.dart';
 import 'package:flutter_basics/widgets/roundedBtn.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
-  runApp(const MyApp());
+  runApp(
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => ListMapProvider()),
+        ChangeNotifierProvider(create: (context) => CounterProvider()),
+      ],
+      child: const MyApp(),
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {
@@ -52,12 +65,29 @@ class MyApp extends StatelessWidget {
           headlineSmall: TextStyle(fontWeight: FontWeight.w500, fontSize: 6),
         ),
       ),
-      home: const MyHomePage(title: 'Welcome to Experiment Lab'),
+      // home: const MyHomePage(title: 'Welcome to Experiment Lab'),
       // home: HomePage(),
       // home: const Intropage(),
       // home: SplashScreen(),
       // home: BmiCalculator(),
       // home: const SplashScreenSharedPref(),
+      // home: ChangeNotifierProvider(create: (_) => CounterProvider() , child: CounterPage(),),
+      // home: ChangeNotifierProvider(create: (_) => ListMapProvider() , child: ListPage(),),
+      // home: ChangeNotifierProvider(
+      //   create: (_) => ListMapProvider(),
+      //   child: ChangeNotifierProvider(
+      //     create: (_) => CounterProvider(),
+      //     child: ListPage(),
+      //   ),
+      // ),
+      // home: MultiProvider(
+      //   providers: [
+      // ChangeNotifierProvider(create: (_) => ListMapProvider()),
+      // ChangeNotifierProvider(create: (context) => CounterProvider()),
+      //   ],
+      //   child: ListPage(),
+      // ),
+      home : const ListPage(),
     );
   }
 }
@@ -382,6 +412,8 @@ class _MyHomePageState extends State<MyHomePage>
       ).showSnackBar(SnackBar(content: Text("Please Try again")));
     }
   }
+
+  int _count = 0;
 
   @override
   Widget build(BuildContext context) {
@@ -1750,51 +1782,79 @@ class _MyHomePageState extends State<MyHomePage>
       // ),
 
       // // // // TOPICS : SAVE DATA LOCALLY USING SQLITE :-
-      body: allNotes.isNotEmpty
-          ? ListView.builder(
-              itemCount: allNotes.length,
-              itemBuilder: (BuildContext context, int index) {
-                return ListTile(
-                  leading: Text("${index + 1}"),
-                  title: Text("${allNotes[index][DBHelper.COLUMN_TITLE]}"),
-                  subtitle: Text(
-                    "${allNotes[index][DBHelper.COLUMN_DESCRIPTION]}",
-                  ),
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      InkWell(
-                        child: Icon(
-                          Icons.edit,
-                          color: Colors.limeAccent.shade100,
-                        ),
-                        onTap: () => showModalBottomSheet(
-                          context: context,
-                          builder: (context) {
-                            notes_title.text =
-                                allNotes[index][DBHelper.COLUMN_TITLE];
-                            notes_desc.text =
-                                allNotes[index][DBHelper.COLUMN_DESCRIPTION];
-                            return bottomModel(
-                              isNew: false,
-                              id: allNotes[index][DBHelper.COLUMN_S_NO],
-                            );
-                          },
-                        ),
-                      ),
-                      InkWell(
-                        child: Icon(Icons.delete, color: Colors.red.shade500),
-                        onTap: () => deleteNote(
-                          context,
-                          allNotes[index][DBHelper.COLUMN_S_NO],
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              },
-            )
-          : Center(child: Text("No Notes Found")),
+      // body: allNotes.isNotEmpty
+      //     ? ListView.builder(
+      //         itemCount: allNotes.length,
+      //         itemBuilder: (BuildContext context, int index) {
+      //           return ListTile(
+      //             leading: Text("${index + 1}"),
+      //             title: Text("${allNotes[index][DBHelper.COLUMN_TITLE]}"),
+      //             subtitle: Text(
+      //               "${allNotes[index][DBHelper.COLUMN_DESCRIPTION]}",
+      //             ),
+      //             trailing: Row(
+      //               mainAxisSize: MainAxisSize.min,
+      //               children: [
+      //                 InkWell(
+      //                   child: Icon(
+      //                     Icons.edit,
+      //                     color: Colors.limeAccent.shade100,
+      //                   ),
+      //                   onTap: () => showModalBottomSheet(
+      //                     context: context,
+      //                     builder: (context) {
+      //                       notes_title.text =
+      //                           allNotes[index][DBHelper.COLUMN_TITLE];
+      //                       notes_desc.text =
+      //                           allNotes[index][DBHelper.COLUMN_DESCRIPTION];
+      //                       return bottomModel(
+      //                         isNew: false,
+      //                         id: allNotes[index][DBHelper.COLUMN_S_NO],
+      //                       );
+      //                     },
+      //                   ),
+      //                 ),
+      //                 InkWell(
+      //                   child: Icon(Icons.delete, color: Colors.red.shade500),
+      //                   onTap: () => deleteNote(
+      //                     context,
+      //                     allNotes[index][DBHelper.COLUMN_S_NO],
+      //                   ),
+      //                 ),
+      //               ],
+      //             ),
+      //           );
+      //         },
+      //       )
+      //     : Center(child: Text("No Notes Found")),
+      //    floatingActionButton: FloatingActionButton(
+      //   onPressed: () {
+      //     // dbRef!.addNotes(
+      //     //   title: "Test Notes",
+      //     //   description: "TEsting notes fo use ",
+      //     // );
+      //     // getNotes();
+      //     showModalBottomSheet(
+      //       context: context,
+      //       builder: (context) {
+      //         return bottomModel();
+      //       },
+      //     );
+      //   },
+      //   child: Icon(Icons.add),
+      // ),
+
+      // // // // TOPICS : STATE MANAGEMENT :-
+      // // // // SUB-TOPICS : PROVIDER:-
+      body: Center(child: Container(child: Text("$_count"))),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          setState(() {
+            _count++;
+          });
+        },
+        child: Icon(Icons.add),
+      ),
 
       /*
       floatingActionButton: FloatingActionButton(
@@ -1803,23 +1863,6 @@ class _MyHomePageState extends State<MyHomePage>
         child: const Icon(Icons.add),
       ),
       */
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          // dbRef!.addNotes(
-          //   title: "Test Notes",
-          //   description: "TEsting notes fo use ",
-          // );
-          // getNotes();
-
-          showModalBottomSheet(
-            context: context,
-            builder: (context) {
-              return bottomModel();
-            },
-          );
-        },
-        child: Icon(Icons.add),
-      ),
     );
   }
 
